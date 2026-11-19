@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: leads
+          MYSQL_USER: lead_app
+          MYSQL_PASSWORD: ci-only-password
+          MYSQL_ROOT_PASSWORD: ci-only-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-only-root-password"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql+pymysql://lead_app:ci-only-password@127.0.0.1:3306/leads
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: pip install fastapi pydantic sqlalchemy alembic pymysql cryptography "pyjwt[crypto]" uvicorn httpx python-dotenv pytest ruff
+      - name: Lint
+        run: ruff check .
+      - name: Unit tests (SQLite in memory)
+        run: pytest -q
+      - name: Migrations and seed against MySQL
+        run: |
+          alembic upgrade head
+          python -m api.app.seed
