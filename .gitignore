@@ -1,0 +1,20 @@
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.db
+*.sqlite*
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+.local-cache/
+
+# Private working notes (never publish)
+PEDIDO-CODEX.md
+PRIVATE/
