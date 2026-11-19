@@ -26,3 +26,9 @@ pytest && ruff check .
 - Phase 5: README with architecture notes.
 
 *Portfolio project — DEMO DATA only — not a production system.*
+
+## Update: Phases 2 and 3 done
+
+- Phase 2: Auth0 RS256 JWT validation with RBAC (`read:leads`) on `GET /leads` and `GET /leads/{id}`; fails closed. 38 tests.
+- Phase 3: GitHub Actions CI (ruff, pytest, Alembic migrations + seed against a MySQL service container).
+- Next: test with a real Auth0 token, then AWS (Phase 4).
