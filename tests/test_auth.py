@@ -95,6 +95,34 @@ def test_hs256_token_signed_with_public_key_is_rejected(client, signing_key):
     assert client.get("/leads", headers=bearer(f"{head}.{body}.{sig}")).status_code == 401
 
 
+@pytest.mark.parametrize(
+    "overrides",
+    [{"permissions": "read:leads"}, {"permissions": None, "scope": ["read:leads"]}],
+)
+def test_malformed_permission_claims_grant_nothing(client, signing_key, overrides):
+    token = make_token(signing_key, **overrides)
+    assert client.get("/leads", headers=bearer(token)).status_code == 403
+
+
+def test_identity_provider_down_returns_503(session_factory, signing_key):
+    from fastapi.testclient import TestClient
+    from jwt import PyJWKClientConnectionError
+
+    from api.app.agent import FixtureProvider
+    from api.app.config import Settings
+    from api.app.main import create_app
+
+    def unreachable(_token):
+        raise PyJWKClientConnectionError("JWKS unreachable")
+
+    app = create_app(
+        Settings(database_url="sqlite://", auth0_domain=DOMAIN, auth0_audience=AUDIENCE),
+        session_factory=session_factory, provider=FixtureProvider(), key_resolver=unreachable,
+    )
+    response = TestClient(app).get("/leads", headers=bearer(make_token(signing_key)))
+    assert response.status_code == 503
+
+
 def test_auth_not_configured_fails_closed(make_client, signing_key):
     unconfigured = make_client(auth0_domain="", auth0_audience="")
     response = unconfigured.get("/leads", headers=bearer(make_token(signing_key)))

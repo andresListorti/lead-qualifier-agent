@@ -43,8 +43,14 @@ def issuer_for(domain: str) -> str:
 
 
 def _permissions(claims: dict) -> set[str]:
-    granted = set(claims.get("permissions") or [])
-    granted.update((claims.get("scope") or "").split())
+    # Malformed claim types grant nothing (and never crash with a 500).
+    permissions = claims.get("permissions")
+    granted: set[str] = set()
+    if isinstance(permissions, list):
+        granted.update(p for p in permissions if isinstance(p, str))
+    scope = claims.get("scope")
+    if isinstance(scope, str):
+        granted.update(scope.split())
     return granted
 
 
