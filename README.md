@@ -20,7 +20,7 @@ Alembic, MySQL, Auth0, GitHub Actions, and (next) AWS Lambda.
 | Auth | Auth0 access tokens, RS256 validated against the tenant JWKS |
 | Agent | `LLMProvider` protocol: deterministic fixture provider (default) or optional Gemini free tier |
 | CI | GitHub Actions: ruff, pytest, migrations + seed against a MySQL service container |
-| Tests | pytest, SQLite in memory, 38 tests |
+| Tests | pytest, SQLite in memory, 40 tests |
 
 ## Endpoints
 
@@ -79,12 +79,26 @@ To call the protected endpoints, create an Auth0 API with the `read:leads` permi
 set `AUTH0_DOMAIN` and `AUTH0_AUDIENCE` in `.env`, and send an access token as
 `Authorization: Bearer <token>`.
 
+## AWS (serverless, ready but not deployed)
+
+`api/lambda_handler.py` wraps the FastAPI app with Mangum, and `template.yaml` (AWS SAM)
+defines one Lambda function behind an API Gateway HTTP API. There is no RDS, EC2, NAT or load
+balancer: `DATABASE_URL` points to an external MySQL and is passed as a `NoEcho` parameter.
+The template is linted with `cfn-lint` in CI and the handler is covered by tests.
+This repo has **not** been deployed to AWS; it is prepared for it.
+
+```bash
+sam build
+sam local start-api          # runs Lambda + API Gateway locally in Docker
+```
+
 ## Roadmap
 
 - [x] Phase 1: API, MySQL, migrations, agent, tests
 - [x] Phase 2: Auth0 JWT validation with RBAC
 - [x] Phase 3: CI with GitHub Actions
-- [ ] Phase 4: AWS deployment (Lambda + API Gateway via SAM, GitHub OIDC, no long-lived keys)
+- [x] Phase 4a: AWS-ready: Lambda handler (Mangum) + SAM template (Lambda + HTTP API), linted in CI. **Not deployed** (no AWS account in use)
+- [ ] Phase 4b: real deployment to the AWS free plan, GitHub OIDC (no long-lived keys)
 - [ ] Optional: small Next.js frontend
 
 ## License

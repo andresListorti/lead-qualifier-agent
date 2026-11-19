@@ -33,11 +33,15 @@ jobs:
           python-version: "3.13"
           cache: pip
       - name: Install dependencies
-        run: pip install fastapi pydantic sqlalchemy alembic pymysql cryptography "pyjwt[crypto]" uvicorn httpx python-dotenv pytest ruff
+        run: pip install fastapi pydantic sqlalchemy alembic pymysql cryptography "pyjwt[crypto]" uvicorn httpx python-dotenv mangum pytest ruff
       - name: Lint
         run: ruff check .
       - name: Unit tests (SQLite in memory)
         run: pytest -q
+      - name: Validate SAM template
+        run: |
+          pip install cfn-lint
+          cfn-lint template.yaml
       - name: Migrations and seed against MySQL
         run: |
           alembic upgrade head

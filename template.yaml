@@ -1,0 +1,52 @@
+# Portfolio project, DEMO DATA only. AWS SAM template: Lambda + HTTP API (API Gateway).
+# No RDS / EC2 / NAT / load balancer. Designed for the AWS free plan.
+# DatabaseUrl must point to an external MySQL; it is passed as a NoEcho parameter, never committed.
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Lead Qualifier Agent API (FastAPI on Lambda via Mangum)
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Default: ""
+  Auth0Domain:
+    Type: String
+    Default: ""
+  Auth0Audience:
+    Type: String
+    Default: ""
+
+Globals:
+  Function:
+    Runtime: python3.13
+    MemorySize: 512
+    Timeout: 15
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: api.lambda_handler.handler
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          AUTH0_DOMAIN: !Ref Auth0Domain
+          AUTH0_AUDIENCE: !Ref Auth0Audience
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+        Proxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: HTTP API base URL
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
