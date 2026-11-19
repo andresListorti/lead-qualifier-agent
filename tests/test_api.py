@@ -17,23 +17,22 @@ def test_create_lead_is_qualified(client):
     assert body["qualification"]["score"] == 90
 
 
-def test_list_and_get_lead(client):
+def test_list_and_get_lead(client, auth_headers):
     client.post("/leads", json=VALID_LEAD)
     client.post("/leads", json={**VALID_LEAD, "budget": "10", "message": "just looking"})
-    listed = client.get("/leads").json()
+    listed = client.get("/leads", headers=auth_headers).json()
     assert [lead["id"] for lead in listed] == [1, 2]
     assert listed[1]["qualification"]["tier"] == "cold"
-    assert client.get("/leads/2").json()["id"] == 2
+    assert client.get("/leads/2", headers=auth_headers).json()["id"] == 2
 
 
-def test_get_missing_lead_returns_404(client):
-    assert client.get("/leads/999").status_code == 404
+def test_get_missing_lead_returns_404(client, auth_headers):
+    assert client.get("/leads/999", headers=auth_headers).status_code == 404
 
 
-def test_pagination_limits_are_validated(client):
-    assert client.get("/leads?limit=0").status_code == 422
-    assert client.get("/leads?limit=101").status_code == 422
-    assert client.get("/leads?offset=-1").status_code == 422
+def test_pagination_limits_are_validated(client, auth_headers):
+    for query in ("limit=0", "limit=101", "offset=-1"):
+        assert client.get(f"/leads?{query}", headers=auth_headers).status_code == 422
 
 
 def test_invalid_payloads_are_rejected(client):

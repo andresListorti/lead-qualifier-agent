@@ -11,6 +11,8 @@ class Settings:
     gemini_api_key: str = field(default="", repr=False)
     gemini_model: str = ""
     gemini_free_tier_confirmed: bool = False
+    auth0_domain: str = ""
+    auth0_audience: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -21,4 +23,6 @@ class Settings:
             gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
             gemini_model=os.getenv("GEMINI_MODEL", ""),
             gemini_free_tier_confirmed=os.getenv("GEMINI_FREE_TIER_CONFIRMED") == "true",
+            auth0_domain=os.getenv("AUTH0_DOMAIN", ""),
+            auth0_audience=os.getenv("AUTH0_AUDIENCE", ""),
         )
