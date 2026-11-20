@@ -13,6 +13,7 @@ class Settings:
     gemini_free_tier_confirmed: bool = False
     auth0_domain: str = ""
     auth0_audience: str = ""
+    rate_limit_per_minute: int = 30
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -25,4 +26,5 @@ class Settings:
             gemini_free_tier_confirmed=os.getenv("GEMINI_FREE_TIER_CONFIRMED") == "true",
             auth0_domain=os.getenv("AUTH0_DOMAIN", ""),
             auth0_audience=os.getenv("AUTH0_AUDIENCE", ""),
+            rate_limit_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "30")),
         )

@@ -11,6 +11,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(200))
     company: Mapped[str] = mapped_column(String(200))
     message: Mapped[str] = mapped_column(Text)

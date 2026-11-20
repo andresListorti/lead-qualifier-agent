@@ -9,7 +9,7 @@ A small FastAPI service that receives sales leads, qualifies them with an AI age
 API protected by Auth0 (JWT, RS256, RBAC).
 
 Built to show a realistic backend stack end to end: FastAPI, Pydantic v2, SQLAlchemy 2,
-Alembic, MySQL, Auth0, GitHub Actions, and (next) AWS Lambda.
+Alembic, MySQL, Auth0, GitHub Actions, and AWS Lambda packaging (ready, not deployed by decision).
 
 ## Stack
 
@@ -20,18 +20,43 @@ Alembic, MySQL, Auth0, GitHub Actions, and (next) AWS Lambda.
 | Auth | Auth0 access tokens, RS256 validated against the tenant JWKS |
 | Agent | `LLMProvider` protocol: deterministic fixture provider (default) or optional Gemini free tier |
 | CI | GitHub Actions: ruff, pytest, migrations + seed against a MySQL service container |
-| Tests | pytest, SQLite in memory, 40 tests |
+| Tests | pytest, SQLite, 55 tests |
 
 ## Endpoints
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | GET | `/health` | public | Liveness + database check |
-| POST | `/leads` | public | Create a lead; the agent qualifies it on the way in |
+| POST | `/leads` | public | Create + qualify (201); optional Idempotency-Key replay (200); IP rate limit (429) |
 | GET | `/leads` | `read:leads` | List leads (`offset`, `limit` ≤ 100) |
 | GET | `/leads/{id}` | `read:leads` | Get one lead |
 
 Interactive docs at `/docs` when the server is running.
+
+## Reliability
+
+`POST /leads` accepts an optional `Idempotency-Key` header: 1-100 ASCII letters,
+digits, underscores or hyphens; invalid keys return `422`. A new key creates a lead
+with `201`; replaying a stored key returns the original lead with `200` without
+calling the agent again, even if the submitted payload changed. Keys are global
+and retained with the lead; use a fresh key for each intended new lead. Without
+a key, each request creates a new lead. Run `alembic upgrade head` to apply migration
+`0002` (nullable `VARCHAR(100)` plus a unique index).
+
+The unique index resolves concurrent inserts: on a commit conflict the session
+rolls back and returns the winning row with `200`. Two overlapping requests can
+both qualify before either commits; this guarantees one stored lead per key,
+not exactly-once provider execution during a race.
+
+`RATE_LIMIT_PER_MINUTE` defaults to `30`; `0` disables it. A thread-safe in-memory
+fixed window limits POST requests per client IP, returning `429` with `Retry-After`
+in seconds. Replays and rejected requests also consume the quota. GET endpoints
+are unaffected. The limiter uses the ASGI client address; proxy configuration
+must supply the correct client IP (raw forwarded headers are not trusted here).
+
+**Per-process only:** restarts clear counters and Lambda/several instances do not
+share them. In production, throttling would live in API Gateway or Redis. This
+portfolio implementation is not a distributed production limit.
 
 ## Security design
 
@@ -97,7 +122,8 @@ sam local start-api          # runs Lambda + API Gateway locally in Docker
 - [x] Phase 1: API, MySQL, migrations, agent, tests
 - [x] Phase 2: Auth0 JWT validation with RBAC
 - [x] Phase 3: CI with GitHub Actions
-- [x] Phase 4a: AWS-ready: Lambda handler (Mangum) + SAM template (Lambda + HTTP API), linted in CI. **Not deployed** (no AWS account in use)
+- [x] Phase 4a: AWS-ready: Lambda handler (Mangum) + SAM template (Lambda + HTTP API), linted in CI. **Not deployed** (not deployed by decision)
+- [x] Reliability demo: idempotent lead creation + per-process IP rate limiting
 - [ ] Phase 4b: real deployment to the AWS free plan, GitHub OIDC (no long-lived keys)
 - [ ] Optional: small Next.js frontend
 
