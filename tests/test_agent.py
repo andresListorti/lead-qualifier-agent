@@ -113,3 +113,12 @@ def test_seed_is_idempotent_and_labeled(session_factory):
     with session_factory() as session:
         assert seed_demo(session) == 10
         assert seed_demo(session) == 0
+
+
+@pytest.mark.parametrize("message", ["Es urgente", "Queremos una reunión", "Pedimos una reunion"])
+def test_fixture_recognizes_spanish_keywords(message):
+    result = Qualification.model_validate_json(
+        FixtureProvider().generate(lead(message=message, budget="0"))
+    )
+    assert result.score == 40
+    assert result.tier == "warm"

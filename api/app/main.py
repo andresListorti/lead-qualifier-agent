@@ -25,6 +25,12 @@ def get_provider(request: Request) -> LLMProvider:
     return request.app.state.provider
 
 
+AUTH_RESPONSES = {
+    401: {"description": "Missing or invalid token"},
+    403: {"description": "Token lacks read:leads"},
+    503: {"description": "Authentication not configured or identity provider unavailable"},
+}
+
 SessionDep = Annotated[Session, Depends(get_session)]
 ProviderDep = Annotated[LLMProvider, Depends(get_provider)]
 
@@ -56,7 +62,7 @@ def create_app(
             "resolver": key_resolver or make_jwks_resolver(settings.auth0_domain),
         }
 
-    @app.get("/health")
+    @app.get("/health", responses={503: {"description": "Database unavailable"}})
     def health(session: SessionDep):
         try:
             session.execute(text("SELECT 1"))
@@ -102,7 +108,10 @@ def create_app(
         session.refresh(lead)
         return lead
 
-    @app.get("/leads", response_model=list[LeadRead], dependencies=[Depends(require_read_leads)])
+    @app.get(
+        "/leads", response_model=list[LeadRead], dependencies=[Depends(require_read_leads)],
+        responses=AUTH_RESPONSES,
+    )
     def list_leads(
         session: SessionDep,
         offset: Annotated[int, Query(ge=0)] = 0,
@@ -111,7 +120,8 @@ def create_app(
         return session.scalars(select(Lead).order_by(Lead.id).offset(offset).limit(limit)).all()
 
     @app.get(
-        "/leads/{lead_id}", response_model=LeadRead, dependencies=[Depends(require_read_leads)]
+        "/leads/{lead_id}", response_model=LeadRead, dependencies=[Depends(require_read_leads)],
+        responses={**AUTH_RESPONSES, 404: {"description": "Lead not found"}},
     )
     def get_lead(lead_id: int, session: SessionDep):
         lead = session.get(Lead, lead_id)

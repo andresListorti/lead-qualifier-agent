@@ -32,7 +32,7 @@ class FixtureProvider:
             reasons.append("Budget is at least 1,000 USD.")
         else:
             reasons.append("Budget is below 1,000 USD.")
-        if re.search(r"\b(urgent|demo|meeting)\b", lead.message, re.IGNORECASE):
+        if re.search(r"\b(urgent|urgente|demo|meeting|reuni[oó]n)\b", lead.message, re.IGNORECASE):
             score += 20
             reasons.append("Message includes an interest or urgency keyword.")
         tier = "hot" if score >= 70 else "warm" if score >= 40 else "cold"

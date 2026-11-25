@@ -1,4 +1,17 @@
+import pytest
+
+from api.app.main import app
 from api.lambda_handler import handler
+
+
+@pytest.fixture(autouse=True)
+def isolated_database(session_factory):
+    # The module-level app reads .env; never depend on a local MySQL being up.
+    # (Starlette's State is dynamic, so monkeypatch would delete it on undo.)
+    original = app.state.session_factory
+    app.state.session_factory = session_factory
+    yield
+    app.state.session_factory = original
 
 
 def http_event(path: str) -> dict:

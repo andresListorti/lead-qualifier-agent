@@ -40,3 +40,8 @@ def test_invalid_payloads_are_rejected(client):
     assert client.post("/leads", json={**VALID_LEAD, "name": ""}).status_code == 422
     assert client.post("/leads", json={**VALID_LEAD, "extra": "x"}).status_code == 422
     assert client.post("/leads", json={**VALID_LEAD, "data_label": "REAL"}).status_code == 422
+
+def test_openapi_documents_auth_errors(client):
+    paths = client.get("/openapi.json").json()["paths"]
+    for path in ("/leads", "/leads/{lead_id}"):
+        assert {"401", "403", "503"} <= set(paths[path]["get"]["responses"])
