@@ -45,3 +45,25 @@ def test_openapi_documents_auth_errors(client):
     paths = client.get("/openapi.json").json()["paths"]
     for path in ("/leads", "/leads/{lead_id}"):
         assert {"401", "403", "503"} <= set(paths[path]["get"]["responses"])
+
+
+def test_simple_view_is_served_and_links_to_docs(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert 'href="/docs"' in response.text
+    assert '"/leads"' in response.text
+
+
+def test_simple_view_keeps_technical_view_intact(client):
+    schema = client.get("/openapi.json").json()
+    assert "/" not in schema["paths"]
+    assert "(/)" in schema["info"]["description"]
+    assert client.get("/docs").status_code == 200
+
+
+def test_simple_view_offers_light_and_dark_themes(client):
+    html = client.get("/").text
+    assert 'id="theme"' in html
+    assert ':root[data-theme="dark"]' in html
+    assert ':root:not([data-theme="light"])' in html

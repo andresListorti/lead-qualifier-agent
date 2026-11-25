@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Qualifier</title>
+<script>
+  // Apply the saved theme before the page paints, to avoid a flash of the wrong one.
+  try { const s = localStorage.getItem("lq-theme"); if (s === "light" || s === "dark") document.documentElement.dataset.theme = s; } catch (e) { /* storage blocked */ }
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677; --line: #e2e5ea;
+    --accent: #2f5bd3; --accent-text: #ffffff; --code-bg: #f0f2f5;
+    --hot: #c2410c; --hot-bg: #fff1e8; --warm: #a16207; --warm-bg: #fff8e1;
+    --cold: #2b6cb0; --cold-bg: #ebf4ff; --ok: #2f855a; --err: #c53030; --err-bg: #fff0f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #14171c; --card: #1d2128; --text: #e6e9ee; --muted: #9aa3b2; --line: #2e333c;
+      --accent: #6b8ff0; --accent-text: #0d1117; --code-bg: #262b33;
+      --hot: #ff8a4c; --hot-bg: #3a2418; --warm: #f2c14e; --warm-bg: #352c14;
+      --cold: #6cb2ff; --cold-bg: #172a40; --ok: #5fd08f; --err: #ff7b7b; --err-bg: #3a1c1c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #14171c; --card: #1d2128; --text: #e6e9ee; --muted: #9aa3b2; --line: #2e333c;
+    --accent: #6b8ff0; --accent-text: #0d1117; --code-bg: #262b33;
+    --hot: #ff8a4c; --hot-bg: #3a2418; --warm: #f2c14e; --warm-bg: #352c14;
+    --cold: #6cb2ff; --cold-bg: #172a40; --ok: #5fd08f; --err: #ff7b7b; --err-bg: #3a1c1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    margin: 8px 0 16px; }
+  .toggles { display: flex; gap: 8px; }
+  h1 { font-size: 1.6rem; margin: 0; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 2px 0 0; }
+  .where { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
+  .badge { font-size: .8rem; font-weight: 700; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-text); }
+  .where .grow { flex: 1; min-width: 200px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  label { display: block; font-weight: 600; margin: 10px 0 4px; }
+  input, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--text); font: inherit; }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+  button, .btn { font: inherit; cursor: pointer; border-radius: 8px; padding: 9px 14px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); text-decoration: none; display: inline-block; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .examples span { color: var(--muted); }
+  .status { font-size: .9rem; color: var(--muted); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); margin-right: 6px; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--err); }
+  .result { border-radius: 12px; padding: 16px 18px; border: 2px solid var(--line); }
+  .result.hot { background: var(--hot-bg); border-color: var(--hot); }
+  .result.warm { background: var(--warm-bg); border-color: var(--warm); }
+  .result.cold { background: var(--cold-bg); border-color: var(--cold); }
+  .result.error { background: var(--err-bg); border-color: var(--err); }
+  .tier { font-size: 1.5rem; font-weight: 800; margin: 0; }
+  .hot .tier { color: var(--hot); } .warm .tier { color: var(--warm); } .cold .tier { color: var(--cold); }
+  .error .tier { color: var(--err); font-size: 1.2rem; }
+  .bar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 8px 0 12px; }
+  .bar i { display: block; height: 100%; background: currentColor; }
+  .hot .bar i { background: var(--hot); } .warm .bar i { background: var(--warm); } .cold .bar i { background: var(--cold); }
+  .result ul { margin: 6px 0 10px; padding-left: 20px; }
+  .note { color: var(--muted); font-size: .92rem; }
+  .tests { display: grid; gap: 10px; }
+  .test { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .test p { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
+  .test .out { grid-column: 1 / -1; font-size: .95rem; }
+  .test .out:empty { display: none; }
+  .pass { color: var(--ok); font-weight: 700; } .fail { color: var(--err); font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+  .pill { font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .pill.hot { background: var(--hot-bg); color: var(--hot); } .pill.warm { background: var(--warm-bg); color: var(--warm); }
+  .pill.cold { background: var(--cold-bg); color: var(--cold); }
+  details { border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; background: var(--card); }
+  summary { cursor: pointer; padding: 8px 12px; font-family: ui-monospace, Consolas, monospace; font-size: .9rem; }
+  pre { margin: 0; padding: 10px 12px; background: var(--code-bg); overflow-x: auto; font-size: .82rem;
+    font-family: ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .code-ok { color: var(--ok); font-weight: 700; } .code-bad { color: var(--err); font-weight: 700; }
+  .empty { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1 data-i18n="title"></h1>
+      <p class="sub" data-i18n="subtitle"></p>
+    </div>
+    <div class="toggles">
+      <button id="theme" type="button"></button>
+      <button id="lang" type="button" aria-label="Language"></button>
+    </div>
+  </header>
+
+  <div class="where">
+    <span class="badge" data-i18n="badge"></span>
+    <span class="grow" data-i18n="where"></span>
+    <a class="btn" href="/docs" id="to-docs" data-i18n="toDocs"></a>
+  </div>
+
+  <section class="card">
+    <h2 data-i18n="formTitle"></h2>
+    <div class="examples">
+      <span data-i18n="examples"></span>
+      <button type="button" data-example="hot" data-i18n="exHot"></button>
+      <button type="button" data-example="warm" data-i18n="exWarm"></button>
+      <button type="button" data-example="cold" data-i18n="exCold"></button>
+    </div>
+    <form id="lead-form" novalidate>
+      <div class="row">
+        <div><label for="name" data-i18n="fName"></label><input id="name" autocomplete="off"></div>
+        <div><label for="company" data-i18n="fCompany"></label><input id="company" autocomplete="off"></div>
+      </div>
+      <label for="message" data-i18n="fMessage"></label>
+      <textarea id="message"></textarea>
+      <label for="budget" data-i18n="fBudget"></label>
+      <input id="budget" type="number" step="any">
+      <div class="actions">
+        <button class="primary" type="submit" id="submit" data-i18n="submit"></button>
+        <span class="status" id="health"><span class="dot"></span><span data-i18n="checking"></span></span>
+      </div>
+    </form>
+  </section>
+
+  <section id="result-wrap" class="card" hidden>
+    <h2 data-i18n="resultTitle"></h2>
+    <div id="result"></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="testsTitle"></h2>
+    <p class="note" data-i18n="testsIntro"></p>
+    <div class="tests">
+      <div class="test">
+        <div><strong data-i18n="tIdemT"></strong><p data-i18n="tIdemD"></p></div>
+        <button type="button" data-test="idem" data-i18n="run"></button>
+        <div class="out" id="out-idem"></div>
+      </div>
+      <div class="test">
+        <div><strong data-i18n="tNegT"></strong><p data-i18n="tNegD"></p></div>
+        <button type="button" data-test="neg" data-i18n="run"></button>
+        <div class="out" id="out-neg"></div>
+      </div>
+      <div class="test">
+        <div><strong data-i18n="tExtraT"></strong><p data-i18n="tExtraD"></p></div>
+        <button type="button" data-test="extra" data-i18n="run"></button>
+        <div class="out" id="out-extra"></div>
+      </div>
+      <div class="test">
+        <div><strong data-i18n="tAuthT"></strong><p data-i18n="tAuthD"></p></div>
+        <button type="button" data-test="auth" data-i18n="run"></button>
+        <div class="out" id="out-auth"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="sessionTitle"></h2>
+    <p class="note" data-i18n="sessionNote"></p>
+    <div id="session-leads"></div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="logTitle"></h2>
+    <p class="note" data-i18n="logNote"></p>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const T = {
+  es: {
+    title: "Calificador de leads",
+    toLight: "☀ Modo claro", toDark: "☾ Modo oscuro",
+    subtitle: "Cargá un posible cliente y el agente lo califica: caliente, tibio o frío.",
+    badge: "VISTA SIMPLE",
+    where: "Esta pantalla usa la misma API que la vista técnica. Todo lo que pasa por la red queda abajo, en “Lo técnico”.",
+    toDocs: "Ver la vista técnica (Swagger) →",
+    formTitle: "1. Nuevo lead",
+    examples: "Ejemplos:",
+    exHot: "🔥 Caliente", exWarm: "🌤 Tibio", exCold: "❄ Frío",
+    fName: "Nombre", fCompany: "Empresa", fMessage: "Mensaje", fBudget: "Presupuesto (USD)",
+    submit: "Calificar lead", sending: "Enviando…",
+    checking: "Revisando el sistema…",
+    healthOk: "Sistema funcionando (base de datos conectada)",
+    healthBad: "La API o la base de datos no responden",
+    resultTitle: "2. Resultado",
+    tier_hot: "🔥 CALIENTE", tier_warm: "🌤 TIBIO", tier_cold: "❄ FRÍO",
+    points: "de 100 puntos", why: "Por qué:", reply: "Respuesta sugerida:",
+    saved: (id) => `Guardado en la base de datos con el ID #${id}.`,
+    errTitle: "La API rechazó el pedido",
+    netTitle: "Sin conexión con la API",
+    netErr: "El servidor no responde. ¿Sigue abierta la ventana de PowerShell del demo?",
+    testsTitle: "3. Pruebas para mostrar",
+    testsIntro: "Cada botón hace un pedido real a la API y explica qué pasó. Usan los datos del formulario de arriba.",
+    run: "Probar",
+    tIdemT: "Enviar dos veces el mismo pedido",
+    tIdemD: "Simula un doble clic o un reintento: con una clave de idempotencia, la API no crea un duplicado.",
+    tNegT: "Presupuesto negativo",
+    tNegD: "La API valida los datos antes de guardarlos.",
+    tExtraT: "Campo que no existe",
+    tExtraD: "La API rechaza campos que no conoce (“hacker”: true).",
+    tAuthT: "Ver todos los leads sin login",
+    tAuthD: "La lista completa está protegida: hace falta un token de Auth0 con permiso read:leads.",
+    idemOk: (a, b, id) => `✔ Primer envío: ${a} (creado, ID #${id}). Segundo envío: ${b} con el mismo ID #${id}. No se duplicó.`,
+    idemBad: "✖ El resultado no fue el esperado; mirá “Lo técnico”.",
+    negOk: "✔ Rechazado con 422: el presupuesto no puede ser negativo. No se guardó nada.",
+    extraOk: "✔ Rechazado con 422: el campo “hacker” no está permitido. No se guardó nada.",
+    authOk: "✔ Bloqueado con 401: sin token no se ven los datos. La API no da pistas de por qué.",
+    authOther: (s) => `Respondió ${s}. Mirá “Lo técnico”.`,
+    unexpected: (s) => `✖ Respondió ${s}, se esperaba otra cosa.`,
+    sessionTitle: "4. Leads creados en esta sesión",
+    sessionNote: "Solo los que cargaste desde esta pantalla. Para ver toda la base hace falta login (prueba de arriba).",
+    sessionEmpty: "Todavía no cargaste ninguno.",
+    colId: "ID", colName: "Nombre", colCompany: "Empresa", colBudget: "Presupuesto", colTier: "Resultado",
+    logTitle: "5. Lo técnico",
+    logNote: "Cada pedido HTTP real que hizo esta pantalla, el más nuevo arriba. Tocá uno para ver qué se envió y qué volvió.",
+    logEmpty: "Todavía no hubo pedidos.",
+    sent: "Enviado", received: "Recibido", curl: "Equivalente en curl",
+    fields: { name: "Nombre", company: "Empresa", message: "Mensaje", budget: "Presupuesto",
+      "idempotency-key": "Clave de idempotencia" },
+    errs: {
+      missing: "es obligatorio", string_too_short: "no puede estar vacío",
+      string_too_long: "es demasiado largo", greater_than_equal: "no puede ser negativo",
+      less_than_equal: "es demasiado grande", decimal_parsing: "tiene que ser un número",
+      decimal_type: "tiene que ser un número", extra_forbidden: "no es un campo permitido",
+      string_pattern_mismatch: "tiene caracteres no permitidos",
+    },
+    tooMany: (s) => `Demasiados envíos seguidos (429). Esperá ${s} segundos.`,
+    reasons: {
+      "DEMO DATA: deterministic portfolio scoring.": "DATOS DE DEMO: puntaje con reglas fijas (no es un modelo entrenado).",
+      "Budget is at least 5,000 USD.": "El presupuesto es de 5.000 USD o más (+50).",
+      "Budget is at least 1,000 USD.": "El presupuesto es de 1.000 USD o más (+25).",
+      "Budget is below 1,000 USD.": "El presupuesto es menor a 1.000 USD (+0).",
+      "Message includes an interest or urgency keyword.": "El mensaje tiene una palabra de interés o urgencia (+20).",
+      "DEMO DATA: Thanks for your interest. Can we discuss your goals?": "DATOS DE DEMO: Gracias por tu interés. ¿Podemos hablar de tus objetivos?",
+    },
+    ex: {
+      hot: ["Ana Test", "Acme", "Es urgente, necesitamos una reunión esta semana.", "50000"],
+      warm: ["Laura Test", "Beta", "Queremos una demo.", "2000"],
+      cold: ["Juan Test", "Mini", "Solo curiosidad.", "0"],
+    },
+  },
+  en: {
+    title: "Lead qualifier",
+    toLight: "☀ Light mode", toDark: "☾ Dark mode",
+    subtitle: "Enter a prospect and the agent qualifies it: hot, warm or cold.",
+    badge: "SIMPLE VIEW",
+    where: "This page uses the same API as the technical view. Every network call is listed below under “Under the hood”.",
+    toDocs: "Open the technical view (Swagger) →",
+    formTitle: "1. New lead",
+    examples: "Examples:",
+    exHot: "🔥 Hot", exWarm: "🌤 Warm", exCold: "❄ Cold",
+    fName: "Name", fCompany: "Company", fMessage: "Message", fBudget: "Budget (USD)",
+    submit: "Qualify lead", sending: "Sending…",
+    checking: "Checking the system…",
+    healthOk: "System up (database connected)",
+    healthBad: "The API or the database is not responding",
+    resultTitle: "2. Result",
+    tier_hot: "🔥 HOT", tier_warm: "🌤 WARM", tier_cold: "❄ COLD",
+    points: "points out of 100", why: "Why:", reply: "Suggested reply:",
+    saved: (id) => `Stored in the database with ID #${id}.`,
+    errTitle: "The API rejected the request",
+    netTitle: "No connection to the API",
+    netErr: "The server is not responding. Is the demo PowerShell window still open?",
+    testsTitle: "3. Checks to demo",
+    testsIntro: "Each button makes a real API call and explains what happened. They use the form data above.",
+    run: "Run",
+    tIdemT: "Send the same request twice",
+    tIdemD: "Simulates a double click or a retry: with an idempotency key the API does not create a duplicate.",
+    tNegT: "Negative budget",
+    tNegD: "The API validates input before storing it.",
+    tExtraT: "Unknown field",
+    tExtraD: "The API rejects fields it does not know (“hacker”: true).",
+    tAuthT: "List all leads without logging in",
+    tAuthD: "The full list is protected: it needs an Auth0 token with the read:leads permission.",
+    idemOk: (a, b, id) => `✔ First call: ${a} (created, ID #${id}). Second call: ${b} with the same ID #${id}. No duplicate.`,
+    idemBad: "✖ Unexpected result; see “Under the hood”.",
+    negOk: "✔ Rejected with 422: the budget cannot be negative. Nothing was stored.",
+    extraOk: "✔ Rejected with 422: the field “hacker” is not allowed. Nothing was stored.",
+    authOk: "✔ Blocked with 401: no token, no data. The API does not say why.",
+    authOther: (s) => `Returned ${s}. See “Under the hood”.`,
+    unexpected: (s) => `✖ Returned ${s}, something else was expected.`,
+    sessionTitle: "4. Leads created in this session",
+    sessionNote: "Only the ones entered from this page. Reading the whole database requires login (check above).",
+    sessionEmpty: "None yet.",
+    colId: "ID", colName: "Name", colCompany: "Company", colBudget: "Budget", colTier: "Result",
+    logTitle: "5. Under the hood",
+    logNote: "Every real HTTP call this page made, newest first. Open one to see what was sent and what came back.",
+    logEmpty: "No calls yet.",
+    sent: "Sent", received: "Received", curl: "curl equivalent",
+    fields: { name: "Name", company: "Company", message: "Message", budget: "Budget",
+      "idempotency-key": "Idempotency key" },
+    errs: {
+      missing: "is required", string_too_short: "cannot be empty", string_too_long: "is too long",
+      greater_than_equal: "cannot be negative", less_than_equal: "is too large",
+      decimal_parsing: "must be a number", decimal_type: "must be a number",
+      extra_forbidden: "is not an allowed field", string_pattern_mismatch: "has characters that are not allowed",
+    },
+    tooMany: (s) => `Too many requests (429). Wait ${s} seconds.`,
+    reasons: {},
+    ex: {
+      hot: ["Ana Test", "Acme", "This is urgent, we need a meeting this week.", "50000"],
+      warm: ["Laura Test", "Beta", "We would like a demo.", "2000"],
+      cold: ["Juan Test", "Mini", "Just curious.", "0"],
+    },
+  },
+};
+
+const $ = (id) => document.getElementById(id);
+let lang = "es";
+try { lang = localStorage.getItem("lq-lang") === "en" ? "en" : "es"; } catch (e) { /* storage blocked */ }
+const t = (key) => T[lang][key];
+const sessionLeads = [];
+const logEntries = [];
+let lastResult = null;
+let healthState = null;
+
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  Object.assign(node, props || {});
+  for (const child of children) if (child != null) node.append(child);
+  return node;
+}
+
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+function currentTheme() {
+  return document.documentElement.dataset.theme || (darkQuery.matches ? "dark" : "light");
+}
+function renderThemeButton() {
+  $("theme").textContent = currentTheme() === "dark" ? t("toLight") : t("toDark");
+}
+$("theme").addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("lq-theme", next); } catch (e) { /* storage blocked */ }
+  renderThemeButton();
+});
+darkQuery.addEventListener("change", renderThemeButton);
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach((node) => { node.textContent = t(node.dataset.i18n); });
+  $("lang").textContent = lang === "es" ? "English" : "Español";
+  renderThemeButton();
+  renderHealth(); renderSession(); renderLog();
+  if (lastResult) renderResult(lastResult);
+  document.querySelectorAll(".test .out").forEach((node) => { node.textContent = ""; });
+}
+
+function formData() {
+  return { name: $("name").value, company: $("company").value,
+    message: $("message").value, budget: $("budget").value };
+}
+
+function fillExample(kind) {
+  const [name, company, message, budget] = t("ex")[kind];
+  $("name").value = name; $("company").value = company; $("message").value = message; $("budget").value = budget;
+}
+
+async function call(method, path, body, headers) {
+  const reqHeaders = Object.assign(body ? { "Content-Type": "application/json" } : {}, headers || {});
+  const started = performance.now();
+  const entry = { method, path, reqHeaders, body, when: new Date() };
+  try {
+    const res = await fetch(path, { method, headers: reqHeaders, body: body ? JSON.stringify(body) : undefined });
+    const text = await res.text();
+    let data = text;
+    try { data = JSON.parse(text); } catch (e) { /* not JSON */ }
+    const resHeaders = {};
+    ["content-type", "retry-after", "www-authenticate"].forEach((h) => {
+      if (res.headers.get(h)) resHeaders[h] = res.headers.get(h);
+    });
+    Object.assign(entry, { status: res.status, statusText: res.statusText, data, resHeaders,
+      ms: Math.round(performance.now() - started) });
+  } catch (e) {
+    Object.assign(entry, { status: 0, statusText: "network error", data: String(e), resHeaders: {}, ms: 0 });
+  }
+  // Keep the status dot honest: no answer means down; any normal answer means the API is up.
+  if (entry.status === 0) healthState = false;
+  else if (path === "/health") healthState = entry.status === 200;
+  else if (entry.status < 500) healthState = true;
+  renderHealth();
+  logEntries.unshift(entry);
+  renderLog();
+  return entry;
+}
+
+function curlFor(e) {
+  const parts = [`curl -i -X ${e.method} "${location.origin}${e.path}"`];
+  for (const [k, v] of Object.entries(e.reqHeaders)) parts.push(`  -H "${k}: ${v}"`);
+  if (e.body) parts.push(`  -d '${JSON.stringify(e.body)}'`);
+  return parts.join(" \\\n");
+}
+
+function renderLog() {
+  const box = $("log");
+  box.replaceChildren();
+  if (!logEntries.length) { box.append(el("p", { className: "empty", textContent: t("logEmpty") })); return; }
+  for (const e of logEntries) {
+    const ok = e.status >= 200 && e.status < 300;
+    const summary = el("summary", {},
+      `${e.method} ${e.path} → `,
+      el("span", { className: ok ? "code-ok" : "code-bad", textContent: `${e.status} ${e.statusText}` }),
+      ` · ${e.ms} ms`);
+    const sent = [`${e.method} ${e.path}`,
+      ...Object.entries(e.reqHeaders).map(([k, v]) => `${k}: ${v}`),
+      e.body ? "\n" + JSON.stringify(e.body, null, 2) : ""].join("\n");
+    const got = [`HTTP ${e.status} ${e.statusText}`,
+      ...Object.entries(e.resHeaders).map(([k, v]) => `${k}: ${v}`),
+      "\n" + (typeof e.data === "string" ? e.data : JSON.stringify(e.data, null, 2))].join("\n");
+    box.append(el("details", {}, summary,
+      el("pre", { textContent: `# ${t("sent")}\n${sent}` }),
+      el("pre", { textContent: `# ${t("received")}\n${got}` }),
+      el("pre", { textContent: `# ${t("curl")}\n${curlFor(e)}` })));
+  }
+}
+
+function friendlyErrors(entry) {
+  if (entry.status === 0) return [t("netErr")];
+  if (entry.status === 429) return [t("tooMany")(entry.resHeaders["retry-after"] || "60")];
+  const detail = entry.data && entry.data.detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => {
+      const field = String((d.loc || []).slice(-1)[0] || "");
+      const label = t("fields")[field] || `“${field}”`;
+      return `${label} ${t("errs")[d.type] || d.msg}`;
+    });
+  }
+  return [typeof detail === "string" ? detail : `HTTP ${entry.status}`];
+}
+
+function renderResult(r) {
+  const box = $("result");
+  box.replaceChildren();
+  $("result-wrap").hidden = false;
+  if (r.kind === "error") {
+    box.append(el("div", { className: "result error" },
+      el("p", { className: "tier", textContent: r.entry.status === 0
+        ? t("netTitle") : `${t("errTitle")} (${r.entry.status})` }),
+      el("ul", {}, ...friendlyErrors(r.entry).map((m) => el("li", { textContent: m })))));
+    return;
+  }
+  const q = r.lead.qualification;
+  const tr = (s) => t("reasons")[s] || s;
+  const bar = el("div", { className: "bar" }, el("i", { style: `width:${q.score}%` }));
+  box.append(el("div", { className: `result ${q.tier}` },
+    el("p", { className: "tier", textContent: `${t("tier_" + q.tier)} — ${q.score} ${t("points")}` }),
+    bar,
+    el("strong", { textContent: t("why") }),
+    el("ul", {}, ...q.reasons.map((s) => el("li", { textContent: tr(s) }))),
+    el("strong", { textContent: t("reply") }),
+    el("p", { textContent: tr(q.suggested_reply) }),
+    el("p", { className: "note", textContent: t("saved")(r.lead.id) })));
+}
+
+function renderSession() {
+  const box = $("session-leads");
+  box.replaceChildren();
+  if (!sessionLeads.length) { box.append(el("p", { className: "empty", textContent: t("sessionEmpty") })); return; }
+  const head = el("tr", {}, ...["colId", "colName", "colCompany", "colBudget", "colTier"].map((k) => el("th", { textContent: t(k) })));
+  const rows = sessionLeads.map((l) => el("tr", {},
+    el("td", { textContent: `#${l.id}` }), el("td", { textContent: l.name }), el("td", { textContent: l.company }),
+    el("td", { textContent: `${Number(l.budget).toLocaleString()} USD` }),
+    el("td", {}, el("span", { className: `pill ${l.qualification.tier}`,
+      textContent: `${t("tier_" + l.qualification.tier)} · ${l.qualification.score}` }))));
+  box.append(el("table", {}, el("thead", {}, head), el("tbody", {}, ...rows)));
+}
+
+function remember(lead) {
+  if (!sessionLeads.some((l) => l.id === lead.id)) sessionLeads.unshift(lead);
+  renderSession();
+}
+
+function renderHealth() {
+  const dot = el("span", { className: "dot" + (healthState === true ? " ok" : healthState === false ? " bad" : "") });
+  const label = healthState === true ? t("healthOk") : healthState === false ? t("healthBad") : t("checking");
+  $("health").replaceChildren(dot, label);
+}
+
+async function checkHealth() {
+  await call("GET", "/health");
+}
+
+$("lead-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = $("submit");
+  btn.disabled = true; btn.textContent = t("sending");
+  const e = await call("POST", "/leads", formData());
+  btn.disabled = false; btn.textContent = t("submit");
+  if (e.status === 201 || e.status === 200) { lastResult = { kind: "lead", lead: e.data }; remember(e.data); }
+  else lastResult = { kind: "error", entry: e };
+  renderResult(lastResult);
+  $("result-wrap").scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
+const tests = {
+  async idem(out) {
+    const key = "demo-" + Date.now();
+    const first = await call("POST", "/leads", formData(), { "Idempotency-Key": key });
+    const second = await call("POST", "/leads", formData(), { "Idempotency-Key": key });
+    if (first.status === 201 && second.status === 200 && first.data.id === second.data.id) {
+      remember(first.data);
+      out.className = "out pass"; out.textContent = t("idemOk")(201, 200, first.data.id);
+    } else if (first.status !== 201) {
+      out.className = "out fail"; out.textContent = friendlyErrors(first).join(" · ");
+    } else { out.className = "out fail"; out.textContent = t("idemBad"); }
+  },
+  async neg(out) {
+    const e = await call("POST", "/leads", Object.assign(formData(), { budget: -5 }));
+    out.className = e.status === 422 ? "out pass" : "out fail";
+    out.textContent = e.status === 422 ? t("negOk") : t("unexpected")(e.status);
+  },
+  async extra(out) {
+    const e = await call("POST", "/leads", Object.assign(formData(), { hacker: true }));
+    out.className = e.status === 422 ? "out pass" : "out fail";
+    out.textContent = e.status === 422 ? t("extraOk") : t("unexpected")(e.status);
+  },
+  async auth(out) {
+    const e = await call("GET", "/leads");
+    out.className = e.status === 401 ? "out pass" : "out";
+    out.textContent = e.status === 401 ? t("authOk") : t("authOther")(e.status);
+  },
+};
+
+document.querySelectorAll("[data-test]").forEach((btn) => btn.addEventListener("click", async () => {
+  const out = $("out-" + btn.dataset.test);
+  btn.disabled = true;
+  try { await tests[btn.dataset.test](out); } finally { btn.disabled = false; }
+}));
+
+document.querySelectorAll("[data-example]").forEach((btn) =>
+  btn.addEventListener("click", () => fillExample(btn.dataset.example)));
+
+$("lang").addEventListener("click", () => {
+  lang = lang === "es" ? "en" : "es";
+  try { localStorage.setItem("lq-lang", lang); } catch (e) { /* storage blocked */ }
+  applyLang();
+});
+
+applyLang();
+fillExample("hot");
+checkHealth();
+</script>
+</body>
+</html>

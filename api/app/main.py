@@ -1,8 +1,11 @@
 from collections.abc import Callable
+from functools import cache
+from pathlib import Path
 from time import monotonic
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -31,6 +34,14 @@ AUTH_RESPONSES = {
     503: {"description": "Authentication not configured or identity provider unavailable"},
 }
 
+WEB_PAGE = Path(__file__).resolve().parents[2] / "web" / "index.html"
+
+
+@cache
+def _web_page() -> str:
+    return WEB_PAGE.read_text(encoding="utf-8")
+
+
 SessionDep = Annotated[Session, Depends(get_session)]
 ProviderDep = Annotated[LLMProvider, Depends(get_provider)]
 
@@ -45,9 +56,16 @@ def create_app(
         title="Lead Qualifier Agent",
         description=(
             "Portfolio project — DEMO DATA only. "
-            "GET endpoints require an Auth0 token with read:leads."
+            "GET endpoints require an Auth0 token with read:leads.\n\n"
+            "[← Simple view / Vista simple](/)"
         ),
     )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def simple_view():
+        # Plain HTML client of this same API; it uses only the public endpoints.
+        return _web_page()
+
     app.state.session_factory = (
         session_factory if session_factory is not None
         else make_session_factory(make_engine(settings.database_url))

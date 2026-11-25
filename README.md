@@ -1,5 +1,7 @@
 # Lead Qualifier Agent
 
+**English** | [Español](README.es.md)
+
 [![CI](https://github.com/andresListorti/lead-qualifier-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/andresListorti/lead-qualifier-agent/actions/workflows/ci.yml)
 
 > **Portfolio project — DEMO DATA only — not a production system.**
@@ -11,6 +13,18 @@ API protected by Auth0 (JWT, RS256, RBAC).
 Built to show a realistic backend stack end to end: FastAPI, Pydantic v2, SQLAlchemy 2,
 Alembic, MySQL, Auth0, GitHub Actions, and AWS Lambda packaging (ready, not deployed by decision).
 
+## Two ways to see it
+
+The same running API offers two views; each links to the other.
+
+| View | URL | For |
+| --- | --- | --- |
+| **Simple view** | `http://127.0.0.1:8000/` | Anyone: a form, a colored result (hot / warm / cold), one-click checks (idempotency, validation, auth) and an "Under the hood" log of every real HTTP call with headers, body and a curl equivalent. ES / EN and light / dark toggles. |
+| **Technical view** | `http://127.0.0.1:8000/docs` | Engineers: Swagger UI generated from the OpenAPI schema, including the Auth0 `Authorize` flow. |
+
+The simple view (`web/index.html`) is a dependency-free page and a plain client of the public
+endpoints; it adds no API surface and is excluded from the OpenAPI schema.
+
 ## Stack
 
 | Area | Choice |
@@ -20,7 +34,7 @@ Alembic, MySQL, Auth0, GitHub Actions, and AWS Lambda packaging (ready, not depl
 | Auth | Auth0 access tokens, RS256 validated against the tenant JWKS |
 | Agent | `LLMProvider` protocol: deterministic fixture provider (default) or optional Gemini free tier |
 | CI | GitHub Actions: ruff, pytest, migrations + seed against a MySQL service container |
-| Tests | pytest, SQLite, 55 tests |
+| Tests | pytest, SQLite, 62 tests |
 
 ## Endpoints
 
@@ -31,7 +45,7 @@ Alembic, MySQL, Auth0, GitHub Actions, and AWS Lambda packaging (ready, not depl
 | GET | `/leads` | `read:leads` | List leads (`offset`, `limit` ≤ 100) |
 | GET | `/leads/{id}` | `read:leads` | Get one lead |
 
-Interactive docs at `/docs` when the server is running.
+Interactive docs at `/docs` and the simple view at `/` when the server is running.
 
 ## Reliability
 
@@ -72,7 +86,7 @@ portfolio implementation is not a distributed production limit.
 
 ## The agent
 
-`qualify_lead` asks an `LLMProvider` for `{score, tier, reason}`, validates it
+`qualify_lead` asks an `LLMProvider` for `{tier, score, reasons, suggested_reply}`, validates it
 (the tier must match the score: hot ≥ 70, warm ≥ 40, otherwise cold), retries once, and
 falls back to a safe result if the provider fails or answers inconsistently.
 
@@ -125,7 +139,8 @@ sam local start-api          # runs Lambda + API Gateway locally in Docker
 - [x] Phase 4a: AWS-ready: Lambda handler (Mangum) + SAM template (Lambda + HTTP API), linted in CI. **Not deployed** (not deployed by decision)
 - [x] Reliability demo: idempotent lead creation + per-process IP rate limiting
 - [ ] Phase 4b: real deployment to the AWS free plan, GitHub OIDC (no long-lived keys)
-- [ ] Optional: small Next.js frontend
+- [x] Simple view at `/`: a plain HTML client of the API, bilingual (ES / EN)
+- [ ] Optional: full Next.js frontend
 
 ## License
 
